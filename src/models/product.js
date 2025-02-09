@@ -29,6 +29,7 @@ const ProductSchema = new Schema({
       'Fabrication Tools',
       'Pipes and Structural Steel',
       'Doors And Plates',
+      'Accessories & Safety Gear',
     ]
   },
   images: [

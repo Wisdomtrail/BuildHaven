@@ -5,7 +5,7 @@ const ProductController = () => {
 
     const createProduct = async (req, res) => {
         const files = req.files;
-        const { name, description, price, category } = req.body;
+        const { name, description, price, category, quantity } = req.body;
     
         if (!name || !description || !price || !category || !files || files.length === 0) {
             return res.status(400).json({
@@ -33,6 +33,7 @@ const ProductController = () => {
                                 name,
                                 description,
                                 price,
+                                quantity,
                                 category,
                                 images: imageUrls,
                             });
@@ -140,11 +141,11 @@ const ProductController = () => {
 
     const getProductsByCategory = async (req, res) => {
         const { category } = req.params;
-
+    
         const cleanedCategory = category.startsWith(":") ? category.substring(1) : category;
-
+    
         try {
-            const products = await Product.find({ cleanedCategory });
+            const products = await Product.find({ category: cleanedCategory });
             return res.status(200).json({
                 message: "Products retrieved successfully",
                 products,
@@ -245,23 +246,27 @@ const ProductController = () => {
     const editProductById = async (req, res) => {
         try {
           const { id } = req.params;
-          const updateFields = req.body; 
+          const { quantity } = req.body;
       
-          const updatedProduct = await Product.findByIdAndUpdate(
-            id,
-            { $set: updateFields },
-            { new: true, runValidators: true }
-          );
+          if (quantity && typeof quantity !== 'number') {
+            return res.status(400).json({ message: 'Quantity must be a number' });
+          }
       
-          if (!updatedProduct) {
+          const product = await Product.findById(id);
+          if (!product) {
             return res.status(404).json({ message: 'Product not found' });
           }
+      
+          if (quantity !== undefined) {
+            product.quantity = quantity;
+          }
+          const updatedProduct = await product.save();
       
           res.json(updatedProduct);
         } catch (error) {
           res.status(500).json({ message: 'Server Error', error });
         }
-      };
+      };      
       
     
     return {
@@ -275,7 +280,6 @@ const ProductController = () => {
         getProductCount,
         getRecentProducts,
         editProductById,
-
     };
 }
 module.exports = ProductController();

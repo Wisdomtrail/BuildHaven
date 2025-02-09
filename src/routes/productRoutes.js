@@ -1,7 +1,8 @@
 const express = require('express');
 const passport = require('passport');
 const { createProduct, getAllProducts, getProductById, updateProduct, getProductsByCategory, deleteProduct, markAsSold,
-  getProductCount, getRecentProducts } = require('../controllers/productsContoller');
+  getProductCount, getRecentProducts, 
+  editProductById} = require('../controllers/productsContoller');
 const { uploadProductImage: uploadProduct } = require('../config/multer');
 
 const router = express.Router();
@@ -39,7 +40,6 @@ router.delete(
 
 router.get(
   '/category/:category',
-  passport.authenticate('jwt', { session: false }),
   getProductsByCategory
 );
 
@@ -54,6 +54,11 @@ router.get(
   passport.authenticate('jwt', { session: false }),
   getProductCount
 );
+router.put(
+  '/edit-product/:id',
+  passport.authenticate('jwt', { session: false }),
+  editProductById,
+)
 
 router.get(
   '/recent',

@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { Schema } = mongoose;
 
-// Define the User Schema
 const UserSchema = new Schema({
   firstName: {
     type: String,
@@ -83,9 +82,21 @@ const UserSchema = new Schema({
       },
     },
   ],
+  cart: [
+    {
+      productId: {
+        type: String,
+        required: true,
+      },
+      quantity: {
+        type: Number,
+        required: true,
+        min: 1,
+      },
+    },
+  ],
 });
 
-// Hash password before saving
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
@@ -96,10 +107,8 @@ UserSchema.pre('save', async function (next) {
   }
 });
 
-// Method to compare passwords
 UserSchema.methods.comparePassword = async function (password) {
   return bcrypt.compare(password, this.password);
 };
 
-// Export the User model
 module.exports = mongoose.model('User', UserSchema);
