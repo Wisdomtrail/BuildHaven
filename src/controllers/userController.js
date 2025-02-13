@@ -437,6 +437,62 @@ const UserController = () => {
             res.status(500).json({ message: "Internal Server Error" });
         }
     };
+
+    const getAllUsers = async (req, res) => {
+        try {
+            // Fetch all users from the database
+            const users = await User.find({}, 'name email phoneNumber balance orders');
+    
+            if (!users.length) {
+                return res.status(404).json({ message: "No users found" });
+            }
+    
+            res.json({
+                message: "Users retrieved successfully",
+                users
+            });
+        } catch (error) {
+            console.error("Error fetching all users:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    };
+    
+    const getAllUserCount = async (req, res) => {
+        try {
+            // Count the total number of users in the database
+            const userCount = await User.countDocuments();
+    
+            res.json({
+                message: "User count retrieved successfully",
+                userCount
+            });
+        } catch (error) {
+            console.error("Error fetching user count:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    };
+    
+    const deleteUserById = async (req, res) => {
+        try {
+            const { userId } = req.params;
+    
+            if (!mongoose.Types.ObjectId.isValid(userId)) {
+                return res.status(400).json({ error: 'Invalid userId format' });
+            }
+    
+            const user = await User.findById(userId);
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            await Order.deleteMany({ userId });
+            await User.findByIdAndDelete(userId);
+    
+            res.status(200).json({ message: 'User and associated orders deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting user by ID:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    };
     
           
     return {
@@ -448,9 +504,12 @@ const UserController = () => {
         deleteUser,
         addToCart,
         getCart,
+        getAllUsers,
+        getAllUserCount,
         getCartQuantity,
         deleteCartItem,
         getOrdersByUserId,
+        deleteUserById,
         clearCart,
         deleteOrderByUserId,
     };

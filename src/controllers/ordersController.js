@@ -118,7 +118,6 @@ const OrderController = {
             // Remove any leading ":" if present
             userId = userId.startsWith(":") ? userId.slice(1) : userId;
     
-            // Validate if userId is a valid MongoDB ObjectId
             if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(400).json({ error: 'Invalid userId format' });
             }
@@ -138,8 +137,90 @@ const OrderController = {
             console.error('Error deleting orders:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
-    }    
-
+    },
+    
+    getOrdersThisWeek: async (req, res) => {
+        try {
+            // Calculate the start of the week (7 days ago)
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+    
+            // Find orders created within the last 7 days
+            const orders = await Order.find({
+                orderDate: {
+                    $gte: sevenDaysAgo, // Greater than or equal to 7 days ago
+                    $lte: today // Less than or equal to today
+                }
+            });
+    
+            if (!orders.length) {
+                return res.status(404).json({ message: "No orders found for this week" });
+            }
+    
+            // Fetch product and user details for each order
+            const ordersWithProducts = await Promise.all(
+                orders.map(async (order) => {
+                    const productIds = order.items.map(item => item.productId); // Use items instead of products
+                    
+                    // Fetch product details for the items in the order
+                    const products = await Product.find(
+                        { _id: { $in: productIds } },
+                        'name price image' // Select relevant fields
+                    );
+    
+                    // Fetch user details
+                    const user = await User.findById(order.userId, 'firstName lastName'); // Fetch firstName and lastName
+    
+                    return {
+                        orderId: order._id,
+                        userId: order.userId,
+                        fullname: user ? `${user.firstName} ${user.lastName}` : "Unknown User", // Construct fullname
+                        products: products.map(product => ({
+                            ...product.toObject(),
+                            quantity: order.items.find(item => item.productId === product._id.toString())?.quantity || 1,
+                        })),
+                        totalAmount: order.totalAmount,
+                        status: order.status,
+                        orderDate: order.orderDate,
+                        pickupMethod: order.pickupMethod,
+                        address: order.address,
+                    };
+                })
+            );
+    
+            res.json(ordersWithProducts);
+        } catch (error) {
+            console.error("Error fetching orders for this week:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+        
+    getOrderCountThisWeek: async (req, res) => {
+        try {
+            // Calculate the start of the week (7 days ago)
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+    
+            // Count orders created within the last 7 days
+            const orderCount = await Order.countDocuments({
+                orderDate: {
+                    $gte: sevenDaysAgo, // Greater than or equal to 7 days ago
+                    $lte: today // Less than or equal to today
+                }
+            });
+    
+            // Return the count
+            res.json({
+                message: "Order count for this week retrieved successfully",
+                orderCount
+            });
+        } catch (error) {
+            console.error("Error fetching order count for this week:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },    
 };
 
 module.exports = OrderController;

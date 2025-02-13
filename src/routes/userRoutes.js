@@ -1,9 +1,11 @@
 const express = require('express');
 const passport = require('passport');
-const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId } = require('../controllers/userController');
+const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById } = require('../controllers/userController');
 const { uploadProfileImage: uploadProfile } = require('../config/multer');
 const { deleteAllOrdersByUserId } = require('../controllers/ordersController');
-
+const { createAdmin } = require('../controllers/adminController');
+const authorizeAdmin = require('../config/authorizeAdmin');
+const authenticateJWT = require('../config/authenticateJWT');
 const router = express.Router();
 
 router.post(
@@ -18,6 +20,40 @@ router.patch(
   passport.authenticate('jwt', { session: false }),
   updateUserInfo
 );
+
+router.get(
+  '/get/All',
+  passport.authenticate('jwt', { session: false }), // Authenticate the token first
+  authenticateJWT,
+  authorizeAdmin,
+  getAllUsers // If both pass, proceed to the controller function
+);
+
+
+router.get(
+  '/get/All-count',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT, // Authenticate the token
+  authorizeAdmin,   // Check admin privileg
+  getAllUserCount
+)
+
+router.delete(
+  '/delete-user/:userId',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT, // Authenticate the token
+  authorizeAdmin,   // Check admin privileg
+  deleteUserById
+)
+
+router.post(
+  '/create-admin',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT, // Authenticate the token
+  authorizeAdmin,   // Check admin privileg
+  createAdmin
+)
+
 router.delete(
   '/deleteAllOrder/:userId',
   passport.authenticate('jwt', { session: false }),

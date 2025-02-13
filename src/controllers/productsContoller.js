@@ -211,18 +211,19 @@ const ProductController = () => {
     
     const getProductCount = async (req, res) => {
         try {
-            const count = await Product.countDocuments();
+            const productCount = await Product.countDocuments();
             return res.status(200).json({
-                message: "Product count retrieved successfully",
-                count,
+                message: 'Product count retrieved successfully',
+                productCount,
             });
         } catch (error) {
-            console.error(error);
-            return res.status(500).json({
-                error: "Server error. Please try again later.",
+            console.error('Error retrieving product count:', error);
+            res.status(500).json({
+                error: 'Internal Server Error',
             });
         }
     };
+    
     
     const getRecentProducts = async (req, res) => {
         const { days } = req.query;
@@ -267,6 +268,48 @@ const ProductController = () => {
           res.status(500).json({ message: 'Server Error', error });
         }
       };      
+
+     const getOrdersThisWeek = async (req, res) => {
+        try {
+            // Calculate the start of the week (7 days ago)
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+
+            // Find orders created within the last 7 days
+            const orders = await Order.find({
+                createdAt: {
+                    $gte: sevenDaysAgo, // Greater than or equal to 7 days ago
+                    $lte: today // Less than or equal to today
+                }
+            });
+
+            if (!orders.length) {
+                return res.status(404).json({ message: "No orders found for this week" });
+            }
+
+            const ordersWithProducts = await Promise.all(orders.map(async (order) => {
+                const productIds = order.products.map(p => p.productId);
+                const products = await Product.find({ _id: { $in: productIds } }, 'name price image');
+
+                return {
+                    orderId: order._id,
+                    userId: order.userId,
+                    products,
+                    totalAmount: order.totalAmount,
+                    status: order.status,
+                    createdAt: order.createdAt
+                };
+            }));
+
+            res.json(ordersWithProducts);
+        } catch (error) {
+            console.error("Error fetching orders for this week:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    };
+    
+
       
     
     return {
