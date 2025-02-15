@@ -95,6 +95,27 @@ const UserSchema = new Schema({
       },
     },
   ],
+  notifications: [
+    {
+      message: {
+        type: String,
+        required: true,
+      },
+      type: {
+        type: String,
+        enum: ['success', 'info', 'warning', 'error'],
+        default: 'info',
+      },
+      isRead: {
+        type: Boolean,
+        default: false,
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
 });
 
 UserSchema.pre('save', async function (next) {
@@ -110,5 +131,14 @@ UserSchema.pre('save', async function (next) {
 UserSchema.methods.comparePassword = async function (password) {
   return bcrypt.compare(password, this.password);
 };
+
+UserSchema.methods.markNotificationsAsRead = async function () {
+  this.notifications = this.notifications.map((notification) => ({
+    ...notification,
+    isRead: true,
+  }));
+  await this.save();
+};
+
 
 module.exports = mongoose.model('User', UserSchema);

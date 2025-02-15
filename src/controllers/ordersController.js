@@ -2,7 +2,9 @@ const User = require('../models/user');
 const mongoose = require('mongoose');
 const Product = require('../models/product');
 const Order = require('../models/order');
+const Admin = require('../models/Admin')
 const OrderController = {
+
     createOrder: async (req, res) => {
         try {
             const { userId, items, totalAmount, pickupMethod, address } = req.body;
@@ -35,6 +37,7 @@ const OrderController = {
             });
 
             await newOrder.save();
+
             user.orders.push({
                 orderId: newOrder._id,
                 items: items,
@@ -43,10 +46,34 @@ const OrderController = {
                 status: 'Pending',
             });
 
+            // Notify the user about their order
+            user.notifications.push({
+                message: `Your order has been placed successfully! Order ID: ${newOrder._id}.`,
+                type: 'success',
+                isRead: false,
+                timestamp: new Date(),
+            });
+
             await user.save();
 
+            // Notify all admins
+            const admins = await Admin.find(); // Retrieve all admins
+            const notificationMessage = `New order placed by user ${user.firstName} ${user.lastName || user.email}. Order ID: ${newOrder._id}.`;
+
+            const adminNotifications = admins.map(async (admin) => {
+                admin.notifications.push({
+                    message: notificationMessage,
+                    type: 'info',
+                    isRead: false,
+                    timestamp: new Date(),
+                });
+                await admin.save();
+            });
+
+            await Promise.all(adminNotifications); // Save notifications concurrently
+
             res.status(201).json({
-                message: 'Order created successfully',
+                message: 'Order created successfully. Notifications sent to user and admins.',
                 order: newOrder,
             });
         } catch (error) {
@@ -54,7 +81,6 @@ const OrderController = {
             res.status(500).json({ error: 'Internal server error' });
         }
     },
-
 
     getOrderById: async (req, res) => {
         try {
@@ -114,38 +140,38 @@ const OrderController = {
     deleteAllOrdersByUserId: async (req, res) => {
         try {
             let { userId } = req.params;
-    
+
             // Remove any leading ":" if present
             userId = userId.startsWith(":") ? userId.slice(1) : userId;
-    
+
             if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(400).json({ error: 'Invalid userId format' });
             }
-    
+
             const user = await User.findById(userId);
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
             }
-    
+
             await Order.deleteMany({ userId });
-    
+
             user.orders = [];
             await user.save();
-    
+
             res.status(200).json({ message: 'All orders for the user have been deleted' });
         } catch (error) {
             console.error('Error deleting orders:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     },
-    
+
     getOrdersThisWeek: async (req, res) => {
         try {
             // Calculate the start of the week (7 days ago)
             const today = new Date();
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(today.getDate() - 7);
-    
+
             // Find orders created within the last 7 days
             const orders = await Order.find({
                 orderDate: {
@@ -153,25 +179,25 @@ const OrderController = {
                     $lte: today // Less than or equal to today
                 }
             });
-    
+
             if (!orders.length) {
                 return res.status(404).json({ message: "No orders found for this week" });
             }
-    
+
             // Fetch product and user details for each order
             const ordersWithProducts = await Promise.all(
                 orders.map(async (order) => {
                     const productIds = order.items.map(item => item.productId); // Use items instead of products
-                    
+
                     // Fetch product details for the items in the order
                     const products = await Product.find(
                         { _id: { $in: productIds } },
                         'name price image' // Select relevant fields
                     );
-    
+
                     // Fetch user details
                     const user = await User.findById(order.userId, 'firstName lastName'); // Fetch firstName and lastName
-    
+
                     return {
                         orderId: order._id,
                         userId: order.userId,
@@ -188,21 +214,21 @@ const OrderController = {
                     };
                 })
             );
-    
+
             res.json(ordersWithProducts);
         } catch (error) {
             console.error("Error fetching orders for this week:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
-        
+
     getOrderCountThisWeek: async (req, res) => {
         try {
             // Calculate the start of the week (7 days ago)
             const today = new Date();
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(today.getDate() - 7);
-    
+
             // Count orders created within the last 7 days
             const orderCount = await Order.countDocuments({
                 orderDate: {
@@ -210,7 +236,7 @@ const OrderController = {
                     $lte: today // Less than or equal to today
                 }
             });
-    
+
             // Return the count
             res.json({
                 message: "Order count for this week retrieved successfully",
@@ -220,7 +246,21 @@ const OrderController = {
             console.error("Error fetching order count for this week:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
-    },    
+    },
+
+    deleteAllOrders: async (req, res) => {
+        try {
+            await Order.deleteMany({}); // Delete all orders
+            res.status(200).json({
+                message: "All orders deleted successfully",
+            });
+        } catch (error) {
+            console.error("Error deleting all orders:", error);
+            res.status(500).json({
+                message: "Internal server error",
+            });
+        }
+    },
 };
 
 module.exports = OrderController;

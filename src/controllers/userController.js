@@ -1,8 +1,10 @@
 const User = require('../models/user');
+const Admin = require('../models/Admin')
 const Product = require('../models/product');
 const Order = require('../models/order');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
 const mongoose = require('mongoose');
 const cloudinary = require('../config/cloudinaryConfig');
 
@@ -39,20 +41,36 @@ const UserController = () => {
                 password,
                 orders: [],
                 coupons: [
-                  {
-                    code: '10OFF',
-                    discount: 10,
-                    expiryDate: expiryDate,
-                    isUsed: false,
-                  },
+                    {
+                        code: '10OFF',
+                        discount: 10,
+                        expiryDate: expiryDate,
+                        isUsed: false,
+                    },
                 ],
-                cart: [], 
-              });
+                cart: [],
+                notifications: [
+                    {
+                        message: 'Welcome! You have successfully registered. Use coupon code 10OFF for a 10% discount on your first purchase!',
+                        type: 'success',
+                    },
+                ],
+            });
 
             const hashedPassword = await bcrypt.hash(password, 10);
             newUser.password = hashedPassword;
 
             await newUser.save();
+
+            // Notify all admins about the new user registration
+            const admins = await Admin.find();
+            for (const admin of admins) {
+                admin.notifications.push({
+                    message: `A new user has registered: ${firstName} ${lastName} (${email}).`,
+                    type: 'info',
+                });
+                await admin.save();
+            }
 
             const token = jwt.sign(
                 { id: newUser._id, email: newUser.email },
@@ -66,8 +84,8 @@ const UserController = () => {
                 user: {
                     id: newUser._id,
                     email: newUser.email,
-                    name: `${newUser.firstName} ${newUser.lastName}`
-                }
+                    name: `${newUser.firstName} ${newUser.lastName}`,
+                },
             });
         } catch (err) {
             console.error(err);
@@ -168,8 +186,8 @@ const UserController = () => {
 
     const updateUserInfo = async (req, res) => {
         const { userId } = req.params;
-        const { firstname, lastname, password, email } = req.body; 
-        
+        const { firstname, lastname, password, email } = req.body;
+
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
 
         try {
@@ -188,7 +206,7 @@ const UserController = () => {
             }
 
             if (password) {
-                const hashedPassword = await bcrypt.hash(password, 10); 
+                const hashedPassword = await bcrypt.hash(password, 10);
                 user.password = hashedPassword;
             }
 
@@ -208,13 +226,13 @@ const UserController = () => {
         }
     };
 
-    const getUserProfile = async (req, res) =>{
-        const { userId } = req.params;        
+    const getUserProfile = async (req, res) => {
+        const { userId } = req.params;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
 
-        try{
+        try {
             const user = await User.findById(cleanedUserId);
-            
+
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
@@ -232,7 +250,7 @@ const UserController = () => {
             })
 
         }
-        catch(err){
+        catch (err) {
             console.error('Eroor getting User Profile:', err);
             return res.status(500).json({
                 message: 'Eroor getting User Profile',
@@ -243,14 +261,14 @@ const UserController = () => {
     const deleteUser = async (req, res) => {
         const { userId } = req.params;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-    
+
         try {
             const user = await User.findByIdAndDelete(cleanedUserId);
-    
+
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
-    
+
             return res.status(200).json({ message: 'User deleted successfully' });
         } catch (err) {
             console.error('Error deleting user:', err);
@@ -262,157 +280,157 @@ const UserController = () => {
         const { productId, quantity } = req.body;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
         const cleanedProductId = productId.startsWith(":") ? productId.substring(1) : productId;
-      
-        try {
-          const user = await User.findById(cleanedUserId);
-      
-          if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-          }
-      
-          const product = await Product.findById(cleanedProductId);
-      
-          if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
-          }
-          const existingProductIndex = user.cart.findIndex(item => item.productId.toString() === cleanedProductId);
-      
-          if (existingProductIndex >= 0) {
-            user.cart[existingProductIndex].quantity += quantity;
-          } else {
-            user.cart.push({ productId: cleanedProductId, quantity });
-          }
-          await user.save();
-      
-          res.status(200).json({ message: 'Product added to cart', cart: user.cart });
-      
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ message: 'An error occurred while adding the product to the cart' });
-        }
-      };
 
-      const getCart = async (req, res) => {
-        const { userId } = req.params; 
+        try {
+            const user = await User.findById(cleanedUserId);
+
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+
+            const product = await Product.findById(cleanedProductId);
+
+            if (!product) {
+                return res.status(404).json({ message: 'Product not found' });
+            }
+            const existingProductIndex = user.cart.findIndex(item => item.productId.toString() === cleanedProductId);
+
+            if (existingProductIndex >= 0) {
+                user.cart[existingProductIndex].quantity += quantity;
+            } else {
+                user.cart.push({ productId: cleanedProductId, quantity });
+            }
+            await user.save();
+
+            res.status(200).json({ message: 'Product added to cart', cart: user.cart });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'An error occurred while adding the product to the cart' });
+        }
+    };
+
+    const getCart = async (req, res) => {
+        const { userId } = req.params;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-      
-        try {
-          const user = await User.findById(cleanedUserId);
-      
-          if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-          }
-          res.status(200).json({ cart: user.cart });
-      
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ message: 'An error occurred while fetching the cart' });
-        }
-      };
 
-      const getCartQuantity = async (req, res) => {
-        const { userId } = req.params; 
+        try {
+            const user = await User.findById(cleanedUserId);
+
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            res.status(200).json({ cart: user.cart });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'An error occurred while fetching the cart' });
+        }
+    };
+
+    const getCartQuantity = async (req, res) => {
+        const { userId } = req.params;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-      
-        try {
-          const user = await User.findById(cleanedUserId);
-      
-          if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-          }
-          const totalQuantity = user.cart.reduce((total, item) => total + item.quantity, 0);
-      
-          res.status(200).json({ totalQuantity });
-      
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ message: 'An error occurred while fetching the cart quantity' });
-        }
-      };
 
-      const deleteCartItem = async (req, res) => {
+        try {
+            const user = await User.findById(cleanedUserId);
+
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            const totalQuantity = user.cart.reduce((total, item) => total + item.quantity, 0);
+
+            res.status(200).json({ totalQuantity });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'An error occurred while fetching the cart quantity' });
+        }
+    };
+
+    const deleteCartItem = async (req, res) => {
         const { userId, productId } = req.params;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
         const cleanedProductId = productId.startsWith(":") ? productId.substring(1) : productId;
-      
-        try {
-          const user = await User.findById(cleanedUserId);
-      
-          if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-          }
-      
-          const productIndex = user.cart.findIndex(item => item.productId.toString() === cleanedProductId);
-      
-          if (productIndex === -1) {
-            return res.status(404).json({ message: 'Product not found in cart' });
-          }
-      
-          user.cart.splice(productIndex, 1);
-          await user.save();
-      
-          res.status(200).json({ message: 'Product removed from cart', cart: user.cart });
-      
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ message: 'An error occurred while removing the product from the cart' });
-        }
-      };
 
-      const clearCart = async(req, res) =>{
+        try {
+            const user = await User.findById(cleanedUserId);
+
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+
+            const productIndex = user.cart.findIndex(item => item.productId.toString() === cleanedProductId);
+
+            if (productIndex === -1) {
+                return res.status(404).json({ message: 'Product not found in cart' });
+            }
+
+            user.cart.splice(productIndex, 1);
+            await user.save();
+
+            res.status(200).json({ message: 'Product removed from cart', cart: user.cart });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'An error occurred while removing the product from the cart' });
+        }
+    };
+
+    const clearCart = async (req, res) => {
         try {
             const { userId } = req.params;
             const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-    
+
             const user = await User.findById(cleanedUserId);
             if (!user) {
                 return res.status(404).json({ message: "User not found" });
             }
-            user.cart = []; 
+            user.cart = [];
             await user.save();
-    
+
             res.status(200).json({ message: "Cart cleared successfully" });
         } catch (error) {
             console.error("Error clearing cart:", error);
             res.status(500).json({ message: "Internal server error" });
         }
-      }
+    }
 
-      const getOrdersByUserId = async (req, res) => {
+    const getOrdersByUserId = async (req, res) => {
         try {
             const { userId } = req.params;
             const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-    
+
             const orders = await Order.find({ userId: cleanedUserId });
-    
+
             if (!orders.length) {
                 return res.status(404).json({ message: "No orders found for this user" });
             }
-    
+
             const ordersWithProducts = await Promise.all(orders.map(async (order) => {
                 const productData = await Promise.all(order.items.map(async (item) => {
                     if (!mongoose.Types.ObjectId.isValid(item.productId)) return null;
-    
+
                     const product = await Product.findById(item.productId, 'name price images');
-    
-                    return product ? { 
+
+                    return product ? {
                         _id: product._id,
-                        name: product.name, 
-                        price: product.price, 
+                        name: product.name,
+                        price: product.price,
                         image: product.images?.[0] || "default.jpg", // Get first image or default
                         quantity: item.quantity
                     } : null;
                 }));
-    
+
                 return {
                     orderId: order._id,
-                    products: productData.filter(p => p !== null), 
+                    products: productData.filter(p => p !== null),
                     totalAmount: order.totalAmount,
                     status: order.status,
                     orderDate: order.orderDate,
                 };
             }));
-    
+
             res.json(ordersWithProducts);
         } catch (error) {
             console.error("Error fetching orders by userId:", error);
@@ -424,13 +442,13 @@ const UserController = () => {
         try {
             const { userId } = req.params;
             const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-    
+
             const order = await Order.findOneAndDelete({ userId: cleanedUserId });
-    
+
             if (!order) {
                 return res.status(404).json({ message: "Order not found or does not belong to the user" });
             }
-    
+
             res.json({ message: "Order deleted successfully" });
         } catch (error) {
             console.error("Error deleting order:", error);
@@ -442,11 +460,11 @@ const UserController = () => {
         try {
             // Fetch all users from the database
             const users = await User.find({}, 'name email phoneNumber balance orders');
-    
+
             if (!users.length) {
                 return res.status(404).json({ message: "No users found" });
             }
-    
+
             res.json({
                 message: "Users retrieved successfully",
                 users
@@ -456,12 +474,12 @@ const UserController = () => {
             res.status(500).json({ message: "Internal Server Error" });
         }
     };
-    
+
     const getAllUserCount = async (req, res) => {
         try {
             // Count the total number of users in the database
             const userCount = await User.countDocuments();
-    
+
             res.json({
                 message: "User count retrieved successfully",
                 userCount
@@ -471,30 +489,44 @@ const UserController = () => {
             res.status(500).json({ message: "Internal Server Error" });
         }
     };
-    
+
     const deleteUserById = async (req, res) => {
         try {
             const { userId } = req.params;
-    
+
             if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(400).json({ error: 'Invalid userId format' });
             }
-    
+
             const user = await User.findById(userId);
             if (!user) {
                 return res.status(404).json({ error: 'User not found' });
             }
             await Order.deleteMany({ userId });
             await User.findByIdAndDelete(userId);
-    
+
             res.status(200).json({ message: 'User and associated orders deleted successfully' });
         } catch (error) {
             console.error('Error deleting user by ID:', error);
             res.status(500).json({ error: 'Internal Server Error' });
         }
     };
-    
-          
+
+    const deleteAllUsers = async (req, res) => {
+        try {
+            await User.deleteMany({}); // Delete all users
+            res.status(200).json({
+                message: "All users deleted successfully",
+            });
+        } catch (error) {
+            console.error("Error deleting all users:", error);
+            res.status(500).json({
+                message: "Internal server error",
+            });
+        }
+    };
+
+
     return {
         login,
         register,
@@ -512,6 +544,7 @@ const UserController = () => {
         deleteUserById,
         clearCart,
         deleteOrderByUserId,
+        deleteAllUsers
     };
 };
 

@@ -63,11 +63,10 @@ const createAdmin = async (req, res) => {
             });
         }
 
-        // Create a new admin
         const newAdmin = new Admin({
             fullName,
             email,
-            password, // Password hashing is handled by the schema's `pre('save')`
+            password,
             role,
         });
 
@@ -92,4 +91,38 @@ const createAdmin = async (req, res) => {
     }
 };
 
-module.exports = { adminLogin, createAdmin };
+const getAdmin = async (req, res) => {
+    const { adminId } = req.params; 
+    const cleanedAdminId = adminId.startsWith(":") ? adminId.substring(1) : adminId;
+
+
+    try {
+        const admin = await Admin.findById(cleanedAdminId).select("profileImageUrl notifications fullName"); // Only fetch the required fields
+
+        if (!admin) {
+            return res.status(404).json({
+                message: 'Admin not found',
+            });
+        }
+
+        const [firstName, ...lastNameParts] = admin.fullName.split(" ");
+        const lastName = lastNameParts.join(" ");
+
+        res.status(200).json({
+            message: 'Admin details retrieved successfully',
+            admin: {
+                id: admin._id,
+                firstName,
+                profileImageUrl: admin.profileImageUrl,
+                notifications: admin.notifications,
+            },
+        });
+    } catch (error) {
+        console.error('Error retrieving admin details:', error);
+        res.status(500).json({
+            message: 'Internal server error',
+        });
+    }
+};
+
+module.exports = { adminLogin, createAdmin, getAdmin };

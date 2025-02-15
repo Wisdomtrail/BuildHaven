@@ -1,9 +1,9 @@
 const express = require('express');
 const passport = require('passport');
-const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById } = require('../controllers/userController');
+const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById, deleteAllUsers } = require('../controllers/userController');
 const { uploadProfileImage: uploadProfile } = require('../config/multer');
-const { deleteAllOrdersByUserId } = require('../controllers/ordersController');
-const { createAdmin } = require('../controllers/adminController');
+const { deleteAllOrdersByUserId, deleteAllOrders } = require('../controllers/ordersController');
+const { createAdmin, getAdmin } = require('../controllers/adminController');
 const authorizeAdmin = require('../config/authorizeAdmin');
 const authenticateJWT = require('../config/authenticateJWT');
 const router = express.Router();
@@ -59,6 +59,30 @@ router.delete(
   passport.authenticate('jwt', { session: false }),
   deleteAllOrdersByUserId,
 )
+router.get(
+  '/getAdmin/:adminId',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT,
+  authorizeAdmin,
+  getAdmin
+)
+
+router.delete(
+  '/deleteAllUsers/',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT,
+  authorizeAdmin,
+  deleteAllUsers
+)
+
+router.delete(
+  '/deleteAllOrders/',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT,
+  authorizeAdmin,
+  deleteAllOrders
+)
+
 router.delete("/deleteOrder/:userId",
   passport.authenticate('jwt', { session: false }),
   deleteOrderByUserId);

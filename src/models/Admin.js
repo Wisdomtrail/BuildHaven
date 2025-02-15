@@ -23,10 +23,35 @@ const adminSchema = new mongoose.Schema({
     enum: ['admin', 'superadmin'],
     default: 'admin'
   },
+  profileImageUrl: {  
+    type: String,
+    default: '', 
+  },
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  notifications: [
+    {
+      message: {
+        type: String,
+        required: true
+      },
+      type: {
+        type: String,
+        enum: ['info', 'warning', 'error', 'success'], // Define notification types
+        default: 'info'
+      },
+      isRead: {
+        type: Boolean,
+        default: false
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now
+      }
+    }
+  ]
 });
 
 // Hash password before saving
@@ -42,8 +67,18 @@ adminSchema.pre('save', async function (next) {
   }
 });
 
+// Compare passwords
 adminSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Mark notifications as read
+adminSchema.methods.markNotificationsAsRead = async function () {
+  this.notifications = this.notifications.map((notification) => ({
+    ...notification,
+    isRead: true,
+  }));
+  await this.save();
 };
 
 const Admin = mongoose.model('Admin', adminSchema);
