@@ -3,7 +3,7 @@ const passport = require('passport');
 const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById, deleteAllUsers } = require('../controllers/userController');
 const { uploadProfileImage: uploadProfile } = require('../config/multer');
 const { deleteAllOrdersByUserId, deleteAllOrders } = require('../controllers/ordersController');
-const { createAdmin, getAdmin } = require('../controllers/adminController');
+const { createAdmin, getAdmin, uploadAdminProfileImage } = require('../controllers/adminController');
 const authorizeAdmin = require('../config/authorizeAdmin');
 const authenticateJWT = require('../config/authenticateJWT');
 const router = express.Router();
@@ -14,6 +14,15 @@ router.post(
   uploadProfile,
   uploadProfileImage
 );
+
+router.post(
+  '/uplaod-admin-profile-image/:adminId',
+  passport.authenticate('jwt', { session: false }),
+  uploadProfile,
+  authenticateJWT,
+  authorizeAdmin,
+  uploadAdminProfileImage
+)
 
 router.patch(
   '/updateInfo/:userId',

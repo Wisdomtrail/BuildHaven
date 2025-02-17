@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cloudinary = require('../config/cloudinaryConfig');
 const Admin = require("../models/Admin");
 require("dotenv").config();
 
@@ -124,5 +125,53 @@ const getAdmin = async (req, res) => {
         });
     }
 };
+const uploadAdminProfileImage = async (req, res) => {
+        const { adminId } = req.params;
+        const file = req.file;
 
-module.exports = { adminLogin, createAdmin, getAdmin };
+        const cleanedAdminId = adminId.startsWith(":") ? adminId.substring(1) : adminId;
+
+        if (!file) {
+            return res.status(400).json({ message: 'No profile image uploaded' });
+        }
+
+        try {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    resource_type: 'auto',
+                    folder: 'user_profiles',
+                },
+                async (error, result) => {
+                    if (error) {
+                        return res.status(500).json({ message: 'Error uploading image', error });
+                    }
+
+                    const admin = await Admin.findById(cleanedAdminId);
+                    if (!admin) {
+                        return res.status(404).json({ message: 'Admin not found' });
+                    }
+
+                    admin.profileImageUrl = result.secure_url;
+                    await admin.save();
+
+                    return res.status(200).json({
+                        message: 'Profile image uploaded successfully',
+                        profileImageUrl: result.secure_url,
+                    });
+                }
+            );
+
+            if (file && file.buffer) {
+                uploadStream.end(file.buffer); // Send file buffer to Cloudinary
+            } else {
+                return res.status(400).json({ message: 'Invalid file format or file missing' });
+            }
+        } catch (err) {
+            console.error('Error uploading profile image:', err);
+            if (!res.headersSent) {
+                return res.status(500).json({ message: 'Image upload failed', error: err });
+            }
+        }
+    };
+
+module.exports = { adminLogin, createAdmin, getAdmin, uploadAdminProfileImage };
