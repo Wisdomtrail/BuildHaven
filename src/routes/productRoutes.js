@@ -22,6 +22,8 @@ router.get(
 router.post(
   '/create',
   passport.authenticate('jwt', { session: false }),
+  authenticateJWT, // Authenticate the token
+  authorizeAdmin,
   uploadProduct,
   createProduct
 );
