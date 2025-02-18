@@ -360,6 +360,102 @@ const OrderController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
+
+    approveOrder: async (req, res) => {
+        try {
+            const { orderId } = req.params;
+
+            // Find the order by ID
+            const order = await Order.findById(orderId);
+            if (!order) {
+                return res.status(404).json({ message: "Order not found" });
+            }
+
+            if (order.status === "Cancelled") {
+                return res.status(400).json({ message: "Cannot approve a cancelled order" });
+            }
+
+            // Reduce the product quantities in the database
+            for (const item of order.items) {
+                const product = await Product.findById(item.productId);
+                if (!product) {
+                    return res.status(404).json({ message: `Product with ID ${item.productId} not found` });
+                }
+                
+                if (product.quantity < item.quantity) {
+                    return res.status(400).json({
+                        message: `Insufficient stock for product ${product.name}`,
+                    });
+                }
+
+                product.quantity -= item.quantity; // Update product quantity
+                await product.save();
+            }
+
+            // Update the order status to "Completed"
+            order.status = "Completed";
+            order.active = false;
+            await order.save();
+
+            // Notify the user about the approved order
+            const user = await User.findById(order.userId);
+            user.notifications.push({
+                message: `Your order with ID ${order._id} has been approved and completed. Thank you for shopping with us!`,
+                type: "success",
+                isRead: false,
+                timestamp: new Date(),
+            });
+            await user.save();
+
+            res.status(200).json({
+                message: "Order approved and products updated.",
+                order,
+            });
+        } catch (error) {
+            console.error("Error approving order:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
+    cancelOrder: async (req, res) => {
+        try {
+            const { orderId } = req.params;
+
+            // Find the order by ID
+            const order = await Order.findById(orderId);
+            if (!order) {
+                return res.status(404).json({ message: "Order not found" });
+            }
+
+            if (order.status === "Completed") {
+                return res.status(400).json({ message: "Cannot cancel a completed order" });
+            }
+
+            // Update the order status to "Cancelled"
+            order.status = "Cancelled";
+            order.active = false;
+            await order.save();
+
+            // Notify the user about the cancelled order
+            const user = await User.findById(order.userId);
+            user.notifications.push({
+                message: `Your order with ID ${order._id} has been cancelled.`,
+                type: "warning",
+                isRead: false,
+                timestamp: new Date(),
+            });
+            await user.save();
+
+            res.status(200).json({
+                message: "Order cancelled successfully.",
+                order,
+            });
+        } catch (error) {
+            console.error("Error cancelling order:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
     
 };
 
