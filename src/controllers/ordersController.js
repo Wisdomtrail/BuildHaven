@@ -306,6 +306,53 @@ const OrderController = {
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
+
+    viewOrderDetails: async (req, res) => {
+        try {
+            const { orderId } = req.params;
+
+            const order = await Order.findById(orderId);
+            if (!order) {
+                return res.status(404).json({ message: "Order not found" });
+            }
+
+            // Fetching products in the order
+            const productIds = order.items.map(item => item.productId);
+            const products = await Product.find({ _id: { $in: productIds } });
+
+            // Prepare the products with first image and details
+            const productsWithDetails = products.map(product => {
+                const productDetails = order.items.find(item => item.productId.toString() === product._id.toString());
+                return {
+                    productId: product._id,
+                    name: product.name,
+                    price: product.price,
+                    image: product.images[0], // Assuming images is an array, and we are getting the first index image
+                    quantity: productDetails.quantity, // Getting quantity from the order
+                    description: product.description,
+                    category: product.category,
+                    stock: product.stock, // Assuming you have stock details in product
+                };
+            });
+
+            // Send order details with product information to admin
+            res.json({
+                orderId: order._id,
+                userId: order.userId,
+                products: productsWithDetails,
+                totalAmount: order.totalAmount,
+                status: order.status,
+                createdAt: order.createdAt,
+                pickupMethod: order.pickupMethod,
+                address: order.address,
+                orderDate: order.orderDate,
+            });
+
+        } catch (error) {
+            console.error("Error fetching order details:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
     
 };
 
