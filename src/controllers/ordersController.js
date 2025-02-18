@@ -261,6 +261,52 @@ const OrderController = {
             });
         }
     },
+    
+    getPendingOrders: async (req, res) => {
+        try {
+            // Find all orders with status 'Pending'
+            const pendingOrders = await Order.find({ status: 'Pending' });
+    
+            if (!pendingOrders.length) {
+                return res.status(404).json({ message: "No pending orders found" });
+            }
+    
+            // Fetch product and user details for each pending order
+            const ordersWithProducts = await Promise.all(pendingOrders.map(async (order) => {
+                const productIds = order.items.map(item => item.productId); // Use items instead of products
+    
+                // Fetch product details for the items in the order
+                const products = await Product.find(
+                    { _id: { $in: productIds } },
+                    'name price image' // Select relevant fields
+                );
+    
+                // Fetch user details
+                const user = await User.findById(order.userId, 'firstName lastName'); // Fetch firstName and lastName
+    
+                return {
+                    orderId: order._id,
+                    userId: order.userId,
+                    fullname: user ? `${user.firstName} ${user.lastName}` : "Unknown User", // Construct fullname
+                    products: products.map(product => ({
+                        ...product.toObject(),
+                        quantity: order.items.find(item => item.productId === product._id.toString())?.quantity || 1,
+                    })),
+                    totalAmount: order.totalAmount,
+                    status: order.status,
+                    orderDate: order.orderDate,
+                    pickupMethod: order.pickupMethod,
+                    address: order.address,
+                };
+            }));
+    
+            res.json(ordersWithProducts);
+        } catch (error) {
+            console.error("Error fetching pending orders:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+    
 };
 
 module.exports = OrderController;
