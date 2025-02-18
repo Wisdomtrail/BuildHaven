@@ -307,15 +307,18 @@ const OrderController = {
         }
     },
 
+
     viewOrderDetails: async (req, res) => {
         try {
-            const { orderId } = req.params;
-            
-            // Check if orderId starts with ":" and handle it
-            const cleanedOrderId = orderId.startsWith(":") ? orderId.slice(1) : orderId;
+            let { orderId } = req.params;
+    
+            // Check if the orderId is valid (24 characters hex string)
+            if (!mongoose.Types.ObjectId.isValid(orderId)) {
+                return res.status(400).json({ message: "Invalid order ID format" });
+            }
     
             // Fetch the order from the database
-            const order = await Order.findById(cleanedOrderId);
+            const order = await Order.findById(orderId);
             if (!order) {
                 return res.status(404).json({ message: "Order not found" });
             }
@@ -331,7 +334,7 @@ const OrderController = {
                     productId: product._id,
                     name: product.name,
                     price: product.price,
-                    image: product.images && product.images.length > 0 ? product.images[0] : null, // Safely accessing the first image
+                    image: product.images && product.images.length > 0 ? product.images[0] : null,
                     quantity: productDetails.quantity,
                     description: product.description,
                     category: product.category,
