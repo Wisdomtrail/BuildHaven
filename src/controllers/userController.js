@@ -103,7 +103,8 @@ const UserController = () => {
                 user: {
                     id: existingUser._id,
                     email: existingUser.email,
-                    name: existingUser.name
+                    name: existingUser.name,
+                    notifications: existingUser.notifications
                 }
             });
         } catch (err) {
