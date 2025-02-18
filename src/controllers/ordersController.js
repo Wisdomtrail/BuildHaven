@@ -222,6 +222,37 @@ const OrderController = {
         }
     },
 
+    deleteOrder: async (req, res) => {
+        try {
+            const { orderId } = req.params;
+    
+            if (!mongoose.Types.ObjectId.isValid(orderId)) {
+                return res.status(400).json({ error: 'Invalid orderId format' });
+            }
+    
+            const order = await Order.findById(orderId);
+            if (!order) {
+                return res.status(404).json({ error: 'Order not found' });
+            }
+    
+            // Remove the order from the user's order history
+            const user = await User.findById(order.userId);
+            if (user) {
+                user.orders = user.orders.filter(order => order.orderId.toString() !== orderId);
+                await user.save();
+            }
+    
+            // Delete the order
+            await Order.findByIdAndDelete(orderId);
+    
+            res.status(200).json({ message: 'Order deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
+    
+
     getOrderCountThisWeek: async (req, res) => {
         try {
             // Calculate the start of the week (7 days ago)
