@@ -28,7 +28,7 @@ router.get(
 );
 
 router.get(
-  '/view-order',
+  '/view-order/:orderId',
   passport.authenticate('jwt', { session: false }),
   authenticateJWT, // Authenticate the token
   authorizeAdmin,   // Check admin privileg
