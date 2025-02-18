@@ -115,9 +115,10 @@ const getAdmin = async (req, res) => {
                 id: admin._id,
                 firstName,
                 profileImageUrl: admin.profileImageUrl,
-                notifications: admin.notifications,
+                notifications: admin.notifications.filter(notification => !notification.isRead),
             },
         });
+        
     } catch (error) {
         console.error('Error retrieving admin details:', error);
         res.status(500).json({
@@ -174,4 +175,53 @@ const uploadAdminProfileImage = async (req, res) => {
         }
     };
 
-module.exports = { adminLogin, createAdmin, getAdmin, uploadAdminProfileImage };
+    const markAsreadNotification = async (req, res) => {
+        const { adminId } = req.params; // Get adminId from URL params
+        const { notificationId } = req.body; // Optional: Specific notification to mark as read
+    
+        try {
+            if (!adminId) {
+                return res.status(400).json({ message: "Admin ID is required." });
+            }
+    
+            if (notificationId) {
+                // Mark a specific notification as read
+                const updatedAdmin = await Admin.findOneAndUpdate(
+                    { _id: adminId, "notifications._id": notificationId },
+                    { $set: { "notifications.$.isRead": true } }, // Update the `isRead` field of the matching notification
+                    { new: true } // Return the updated document
+                );
+    
+                if (!updatedAdmin) {
+                    return res.status(404).json({ message: "Notification or Admin not found." });
+                }
+    
+                return res.status(200).json({ 
+                    message: "Notification marked as read.", 
+                    notifications: updatedAdmin.notifications 
+                });
+            } else {
+                // Mark all notifications as read
+                const updatedAdmin = await Admin.findByIdAndUpdate(
+                    adminId,
+                    { $set: { "notifications.$[].isRead": true } }, // Update all `isRead` fields in notifications array
+                    { new: true } // Return the updated document
+                );
+    
+                if (!updatedAdmin) {
+                    return res.status(404).json({ message: "Admin not found." });
+                }
+    
+                return res.status(200).json({ 
+                    message: "All notifications marked as read.", 
+                    notifications: updatedAdmin.notifications 
+                });
+            }
+        } catch (error) {
+            console.error("Error marking notifications as read:", error);
+            return res.status(500).json({ message: "Internal Server Error." });
+        }
+    };
+    
+
+module.exports = { adminLogin, createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification };

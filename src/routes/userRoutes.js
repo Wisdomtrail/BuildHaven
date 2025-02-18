@@ -3,7 +3,7 @@ const passport = require('passport');
 const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById, deleteAllUsers } = require('../controllers/userController');
 const { uploadProfileImage: uploadProfile } = require('../config/multer');
 const { deleteAllOrdersByUserId, deleteAllOrders } = require('../controllers/ordersController');
-const { createAdmin, getAdmin, uploadAdminProfileImage } = require('../controllers/adminController');
+const { createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification } = require('../controllers/adminController');
 const authorizeAdmin = require('../config/authorizeAdmin');
 const authenticateJWT = require('../config/authenticateJWT');
 const router = express.Router();
@@ -32,11 +32,19 @@ router.patch(
 
 router.get(
   '/get/All',
-  passport.authenticate('jwt', { session: false }), // Authenticate the token first
+  passport.authenticate('jwt', { session: false }),
   authenticateJWT,
   authorizeAdmin,
-  getAllUsers // If both pass, proceed to the controller function
+  getAllUsers 
 );
+
+router.put(
+  "/user/:adminId/notifications/read",
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT,
+  authorizeAdmin,
+  markAsreadNotification
+)
 
 
 router.get(
