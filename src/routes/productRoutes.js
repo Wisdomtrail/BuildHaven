@@ -35,7 +35,7 @@ router.get(
   viewOrderDetails
 );
 
-router.get(
+router.post(
   '/cancel-order/:orderId',
   passport.authenticate('jwt', { session: false }),
   authenticateJWT, // Authenticate the token
@@ -43,7 +43,7 @@ router.get(
   cancelOrder
 )
 
-router.get(
+router.post(
   '/approve-order/:orderId',
   passport.authenticate('jwt', { session: false }),
   authenticateJWT, // Authenticate the token
