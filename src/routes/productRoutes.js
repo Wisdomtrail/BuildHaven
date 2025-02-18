@@ -5,7 +5,7 @@ const { createProduct, getAllProducts, getProductById, updateProduct, getProduct
   editProductById,
   } = require('../controllers/productsContoller');
 const { uploadProductImage: uploadProduct } = require('../config/multer');
-const { getOrdersThisWeek, getOrderCountThisWeek } = require('../controllers/ordersController');
+const { getOrdersThisWeek, getOrderCountThisWeek, getPendingOrders,  } = require('../controllers/ordersController');
 const authorizeAdmin = require('../config/authorizeAdmin');
 const authenticateJWT = require('../config/authenticateJWT');
 
@@ -18,6 +18,16 @@ router.get(
   authorizeAdmin,   // Check admin privileg
   getProductCount
 );
+
+router.get(
+  '/pending-order',
+  passport.authenticate('jwt', { session: false }),
+  authenticateJWT, // Authenticate the token
+  authorizeAdmin,   // Check admin privileg
+  getPendingOrders
+);
+
+
 
 router.post(
   '/create',
