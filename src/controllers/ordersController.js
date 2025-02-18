@@ -310,32 +310,36 @@ const OrderController = {
     viewOrderDetails: async (req, res) => {
         try {
             const { orderId } = req.params;
-
-            const order = await Order.findById(orderId);
+            
+            // Check if orderId starts with ":" and handle it
+            const cleanedOrderId = orderId.startsWith(":") ? orderId.slice(1) : orderId;
+    
+            // Fetch the order from the database
+            const order = await Order.findById(cleanedOrderId);
             if (!order) {
                 return res.status(404).json({ message: "Order not found" });
             }
-
-            // Fetching products in the order
+    
+            // Fetch products related to the order
             const productIds = order.items.map(item => item.productId);
             const products = await Product.find({ _id: { $in: productIds } });
-
-            // Prepare the products with first image and details
+    
+            // Prepare product details
             const productsWithDetails = products.map(product => {
                 const productDetails = order.items.find(item => item.productId.toString() === product._id.toString());
                 return {
                     productId: product._id,
                     name: product.name,
                     price: product.price,
-                    image: product.images[0], // Assuming images is an array, and we are getting the first index image
-                    quantity: productDetails.quantity, // Getting quantity from the order
+                    image: product.images && product.images.length > 0 ? product.images[0] : null, // Safely accessing the first image
+                    quantity: productDetails.quantity,
                     description: product.description,
                     category: product.category,
-                    stock: product.stock, // Assuming you have stock details in product
+                    stock: product.stock,
                 };
             });
-
-            // Send order details with product information to admin
+    
+            // Send the order details with product information to the client
             res.json({
                 orderId: order._id,
                 userId: order.userId,
@@ -347,7 +351,7 @@ const OrderController = {
                 address: order.address,
                 orderDate: order.orderDate,
             });
-
+    
         } catch (error) {
             console.error("Error fetching order details:", error);
             res.status(500).json({ message: "Internal Server Error" });
