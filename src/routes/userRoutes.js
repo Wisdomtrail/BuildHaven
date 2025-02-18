@@ -16,7 +16,7 @@ router.post(
 );
 
 router.post(
-  '/uplaod-admin-profile-image/:adminId',
+  '/upload-admin-profile-image/:adminId',
   passport.authenticate('jwt', { session: false }),
   uploadProfile,
   authenticateJWT,

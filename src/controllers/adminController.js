@@ -93,7 +93,7 @@ const createAdmin = async (req, res) => {
 };
 
 const getAdmin = async (req, res) => {
-    const { adminId } = req.params; 
+    const { adminId } = req.params;
     const cleanedAdminId = adminId.startsWith(":") ? adminId.substring(1) : adminId;
 
 
@@ -118,7 +118,7 @@ const getAdmin = async (req, res) => {
                 notifications: admin.notifications.filter(notification => !notification.isRead),
             },
         });
-        
+
     } catch (error) {
         console.error('Error retrieving admin details:', error);
         res.status(500).json({
@@ -127,101 +127,101 @@ const getAdmin = async (req, res) => {
     }
 };
 const uploadAdminProfileImage = async (req, res) => {
-        const { adminId } = req.params;
-        const file = req.file;
+    const { adminId } = req.params;
+    const file = req.file;
 
-        const cleanedAdminId = adminId.startsWith(":") ? adminId.substring(1) : adminId;
+    const cleanedAdminId = adminId.startsWith(":") ? adminId.substring(1) : adminId;
 
-        if (!file) {
-            return res.status(400).json({ message: 'No profile image uploaded' });
+    if (!file) {
+        return res.status(400).json({ message: 'No profile image uploaded' });
+    }
+
+    try {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                resource_type: 'auto',
+                folder: 'user_profiles',
+            },
+            async (error, result) => {
+                if (error) {
+                    return res.status(500).json({ message: 'Error uploading image', error });
+                }
+
+                const admin = await Admin.findById(cleanedAdminId);
+                if (!admin) {
+                    return res.status(404).json({ message: 'Admin not found' });
+                }
+
+                admin.profileImageUrl = result.secure_url;
+                await admin.save();
+
+                return res.status(200).json({
+                    message: 'Profile image uploaded successfully',
+                    profileImageUrl: result.secure_url,
+                });
+            }
+        );
+
+        if (file && file.buffer) {
+            uploadStream.end(file.buffer); // Send file buffer to Cloudinary
+        } else {
+            return res.status(400).json({ message: 'Invalid file format or file missing' });
+        }
+    } catch (err) {
+        console.error('Error uploading profile image:', err);
+        if (!res.headersSent) {
+            return res.status(500).json({ message: 'Image upload failed', error: err });
+        }
+    }
+};
+
+const markAsreadNotification = async (req, res) => {
+    const { adminId } = req.params; // Get adminId from URL params
+    const { notificationId } = req.body; // Optional: Specific notification to mark as read
+
+    try {
+        if (!adminId) {
+            return res.status(400).json({ message: "Admin ID is required." });
         }
 
-        try {
-            const uploadStream = cloudinary.uploader.upload_stream(
-                {
-                    resource_type: 'auto',
-                    folder: 'user_profiles',
-                },
-                async (error, result) => {
-                    if (error) {
-                        return res.status(500).json({ message: 'Error uploading image', error });
-                    }
-
-                    const admin = await Admin.findById(cleanedAdminId);
-                    if (!admin) {
-                        return res.status(404).json({ message: 'Admin not found' });
-                    }
-
-                    admin.profileImageUrl = result.secure_url;
-                    await admin.save();
-
-                    return res.status(200).json({
-                        message: 'Profile image uploaded successfully',
-                        profileImageUrl: result.secure_url,
-                    });
-                }
+        if (notificationId) {
+            // Mark a specific notification as read
+            const updatedAdmin = await Admin.findOneAndUpdate(
+                { _id: adminId, "notifications._id": notificationId },
+                { $set: { "notifications.$.isRead": true } }, // Update the `isRead` field of the matching notification
+                { new: true } // Return the updated document
             );
 
-            if (file && file.buffer) {
-                uploadStream.end(file.buffer); // Send file buffer to Cloudinary
-            } else {
-                return res.status(400).json({ message: 'Invalid file format or file missing' });
+            if (!updatedAdmin) {
+                return res.status(404).json({ message: "Notification or Admin not found." });
             }
-        } catch (err) {
-            console.error('Error uploading profile image:', err);
-            if (!res.headersSent) {
-                return res.status(500).json({ message: 'Image upload failed', error: err });
-            }
-        }
-    };
 
-    const markAsreadNotification = async (req, res) => {
-        const { adminId } = req.params; // Get adminId from URL params
-        const { notificationId } = req.body; // Optional: Specific notification to mark as read
-    
-        try {
-            if (!adminId) {
-                return res.status(400).json({ message: "Admin ID is required." });
+            return res.status(200).json({
+                message: "Notification marked as read.",
+                notifications: updatedAdmin.notifications
+            });
+        } else {
+            // Mark all notifications as read
+            const updatedAdmin = await Admin.findByIdAndUpdate(
+                adminId,
+                { $set: { "notifications.$[].isRead": true } }, // Update all `isRead` fields in notifications array
+                { new: true } // Return the updated document
+            );
+
+            if (!updatedAdmin) {
+                return res.status(404).json({ message: "Admin not found." });
             }
-    
-            if (notificationId) {
-                // Mark a specific notification as read
-                const updatedAdmin = await Admin.findOneAndUpdate(
-                    { _id: adminId, "notifications._id": notificationId },
-                    { $set: { "notifications.$.isRead": true } }, // Update the `isRead` field of the matching notification
-                    { new: true } // Return the updated document
-                );
-    
-                if (!updatedAdmin) {
-                    return res.status(404).json({ message: "Notification or Admin not found." });
-                }
-    
-                return res.status(200).json({ 
-                    message: "Notification marked as read.", 
-                    notifications: updatedAdmin.notifications 
-                });
-            } else {
-                // Mark all notifications as read
-                const updatedAdmin = await Admin.findByIdAndUpdate(
-                    adminId,
-                    { $set: { "notifications.$[].isRead": true } }, // Update all `isRead` fields in notifications array
-                    { new: true } // Return the updated document
-                );
-    
-                if (!updatedAdmin) {
-                    return res.status(404).json({ message: "Admin not found." });
-                }
-    
-                return res.status(200).json({ 
-                    message: "All notifications marked as read.", 
-                    notifications: updatedAdmin.notifications 
-                });
-            }
-        } catch (error) {
-            console.error("Error marking notifications as read:", error);
-            return res.status(500).json({ message: "Internal Server Error." });
+
+            return res.status(200).json({
+                message: "All notifications marked as read.",
+                notifications: updatedAdmin.notifications
+            });
         }
-    };
-    
+    } catch (error) {
+        console.error("Error marking notifications as read:", error);
+        return res.status(500).json({ message: "Internal Server Error." });
+    }
+};
+
 
 module.exports = { adminLogin, createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification };
