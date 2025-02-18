@@ -39,7 +39,7 @@ router.get(
 );
 
 router.put(
-  "/user/:adminId/notifications/read",
+  "/:adminId/notifications/read",
   passport.authenticate('jwt', { session: false }),
   authenticateJWT,
   authorizeAdmin,
