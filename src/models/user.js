@@ -27,40 +27,6 @@ const UserSchema = new Schema({
     type: String,
     default: '', 
   },
-  orders: [
-    {
-      orderId: {
-        type: String,
-        required: true,
-      },
-      items: [
-        {
-          productId: {
-            type: String,
-            required: true,
-          },
-          quantity: {
-            type: Number,
-            required: true,
-            min: 1,
-          },
-        },
-      ],
-      totalAmount: {
-        type: Number,
-        required: true,
-      },
-      orderDate: {
-        type: Date,
-        default: Date.now,
-      },
-      status: {
-        type: String,
-        enum: ['Pending', 'Completed', 'Cancelled'],
-        default: 'Pending',
-      },
-    },
-  ],
   coupons: [
     {
       code: {
@@ -117,8 +83,6 @@ const UserSchema = new Schema({
   ],
 });
 
-
-
 UserSchema.methods.markNotificationsAsRead = async function () {
   this.notifications = this.notifications.map((notification) => ({
     ...notification,
@@ -126,6 +90,5 @@ UserSchema.methods.markNotificationsAsRead = async function () {
   }));
   await this.save();
 };
-
 
 module.exports = mongoose.model('User', UserSchema);

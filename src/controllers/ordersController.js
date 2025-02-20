@@ -221,33 +221,33 @@ const OrderController = {
     deleteOrder: async (req, res) => {
         try {
             const { orderId } = req.params;
-    
+
             if (!mongoose.Types.ObjectId.isValid(orderId)) {
                 return res.status(400).json({ error: 'Invalid orderId format' });
             }
-    
+
             const order = await Order.findById(orderId);
             if (!order) {
                 return res.status(404).json({ error: 'Order not found' });
             }
-    
+
             // Remove the order from the user's order history
             const user = await User.findById(order.userId);
             if (user) {
                 user.orders = user.orders.filter(order => order.orderId.toString() !== orderId);
                 await user.save();
             }
-    
+
             // Delete the order
             await Order.findByIdAndDelete(orderId);
-    
+
             res.status(200).json({ message: 'Order deleted successfully' });
         } catch (error) {
             console.error('Error deleting order:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     },
-    
+
 
     getOrderCountThisWeek: async (req, res) => {
         try {
@@ -288,29 +288,29 @@ const OrderController = {
             });
         }
     },
-    
+
     getPendingOrders: async (req, res) => {
         try {
             // Find all orders with status 'Pending'
             const pendingOrders = await Order.find({ status: 'Pending' });
-    
+
             if (!pendingOrders.length) {
                 return res.status(404).json({ message: "No pending orders found" });
             }
-    
+
             // Fetch product and user details for each pending order
             const ordersWithProducts = await Promise.all(pendingOrders.map(async (order) => {
                 const productIds = order.items.map(item => item.productId); // Use items instead of products
-    
+
                 // Fetch product details for the items in the order
                 const products = await Product.find(
                     { _id: { $in: productIds } },
                     'name price image' // Select relevant fields
                 );
-    
+
                 // Fetch user details
                 const user = await User.findById(order.userId, 'firstName lastName'); // Fetch firstName and lastName
-    
+
                 return {
                     orderId: order._id,
                     userId: order.userId,
@@ -326,7 +326,7 @@ const OrderController = {
                     address: order.address,
                 };
             }));
-    
+
             res.json(ordersWithProducts);
         } catch (error) {
             console.error("Error fetching pending orders:", error);
@@ -338,22 +338,22 @@ const OrderController = {
     viewOrderDetails: async (req, res) => {
         try {
             let { orderId } = req.params;
-    
+
             // Check if the orderId is valid (24 characters hex string)
             if (!mongoose.Types.ObjectId.isValid(orderId)) {
                 return res.status(400).json({ message: "Invalid order ID format" });
             }
-    
+
             // Fetch the order from the database
             const order = await Order.findById(orderId);
             if (!order) {
                 return res.status(404).json({ message: "Order not found" });
             }
-    
+
             // Fetch products related to the order
             const productIds = order.items.map(item => item.productId);
             const products = await Product.find({ _id: { $in: productIds } });
-    
+
             // Prepare product details
             const productsWithDetails = products.map(product => {
                 const productDetails = order.items.find(item => item.productId.toString() === product._id.toString());
@@ -368,7 +368,7 @@ const OrderController = {
                     stock: product.stock,
                 };
             });
-    
+
             // Send the order details with product information to the client
             res.json({
                 orderId: order._id,
@@ -381,7 +381,7 @@ const OrderController = {
                 address: order.address,
                 orderDate: order.orderDate,
             });
-    
+
         } catch (error) {
             console.error("Error fetching order details:", error);
             res.status(500).json({ message: "Internal Server Error" });
@@ -391,99 +391,89 @@ const OrderController = {
     approveOrder: async (req, res) => {
         try {
             const { orderId } = req.params;
-
-            // Find the order by ID
             const order = await Order.findById(orderId);
+
             if (!order) {
-                return res.status(404).json({ message: "Order not found" });
+                return res.status(404).json({ message: 'Order not found' });
             }
 
-            if (order.status === "Cancelled") {
-                return res.status(400).json({ message: "Cannot approve a cancelled order" });
+            if (order.status === 'Cancelled') {
+                return res.status(400).json({ message: 'Cannot approve a cancelled order' });
             }
 
-            // Reduce the product quantities in the database
+            // Process item quantities and update stock
             for (const item of order.items) {
                 const product = await Product.findById(item.productId);
                 if (!product) {
-                    return res.status(404).json({ message: `Product with ID ${item.productId} not found` });
+                    return res.status(404).json({ message: `Product not found` });
                 }
-                
                 if (product.quantity < item.quantity) {
-                    return res.status(400).json({
-                        message: `Insufficient stock for product ${product.name}`,
-                    });
+                    return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
                 }
 
-                product.quantity -= item.quantity; // Update product quantity
+                product.quantity -= item.quantity;  // Update product stock
                 await product.save();
             }
 
-            // Update the order status to "Completed"
-            order.status = "Completed";
+            // Update order status to completed
+            order.status = 'Completed';
             order.active = false;
             await order.save();
 
-            // Notify the user about the approved order
+            // Notify user about order approval
             const user = await User.findById(order.userId);
             user.notifications.push({
-                message: `Your order with ID ${order._id} has been approved and completed. Thank you for shopping with us!`,
-                type: "success",
+                message: `Your order with ID ${order._id} has been completed.`,
+                type: 'success',
                 isRead: false,
                 timestamp: new Date(),
             });
             await user.save();
 
-            res.status(200).json({
-                message: "Order approved and products updated.",
-                order,
-            });
+            res.status(200).json({ message: 'Order approved and products updated', order });
+
         } catch (error) {
-            console.error("Error approving order:", error);
-            res.status(500).json({ message: "Internal Server Error" });
+            console.error('Error approving order:', error);
+            res.status(500).json({ message: 'Internal Server Error' });
         }
     },
 
     cancelOrder: async (req, res) => {
         try {
             const { orderId } = req.params;
-
-            // Find the order by ID
             const order = await Order.findById(orderId);
+
             if (!order) {
-                return res.status(404).json({ message: "Order not found" });
+                return res.status(404).json({ message: 'Order not found' });
             }
 
-            if (order.status === "Completed") {
-                return res.status(400).json({ message: "Cannot cancel a completed order" });
+            if (order.status === 'Completed') {
+                return res.status(400).json({ message: 'Cannot cancel a completed order' });
             }
 
-            // Update the order status to "Cancelled"
-            order.status = "Cancelled";
+            // Update order status to cancelled
+            order.status = 'Cancelled';
             order.active = false;
             await order.save();
 
-            // Notify the user about the cancelled order
+            // Notify user about order cancellation
             const user = await User.findById(order.userId);
             user.notifications.push({
                 message: `Your order with ID ${order._id} has been cancelled.`,
-                type: "warning",
+                type: 'warning',
                 isRead: false,
                 timestamp: new Date(),
             });
             await user.save();
 
-            res.status(200).json({
-                message: "Order cancelled successfully.",
-                order,
-            });
-        } catch (error) {
-            console.error("Error cancelling order:", error);
-            res.status(500).json({ message: "Internal Server Error" });
-        }
-    },
+            res.status(200).json({ message: 'Order cancelled successfully', order });
 
-    
+        } catch (error) {
+            console.error('Error cancelling order:', error);
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+    }
+
 };
 
 module.exports = OrderController;
