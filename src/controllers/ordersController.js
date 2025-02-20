@@ -165,12 +165,10 @@ const OrderController = {
 
     getOrdersThisWeek: async (req, res) => {
         try {
-            // Calculate the start of the week (7 days ago)
             const today = new Date();
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(today.getDate() - 7);
 
-            // Find orders created within the last 7 days
             const orders = await Order.find({
                 orderDate: {
                     $gte: sevenDaysAgo, // Greater than or equal to 7 days ago

@@ -206,40 +206,42 @@ const UserController = () => {
         }
     };
 
-    const getUserProfile = async (req, res) =>{
+    const getUserProfile = async (req, res) => {
         const { userId } = req.params;        
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
-
-        try{
-            const user = await User.findById(cleanedUserId);
-            
+    
+        try {
+            // Find the user and populate the orders field
+            const user = await User.findById(cleanedUserId).populate('orders'); // Ensure 'orders' is a reference field in the User schema
+    
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
-
+    
             const fullName = user.firstName + " " + user.lastName;
             const email = user.email;
-            const orders = user.orders;
+            const orders = user.orders; // Populated orders will include updated details
             const profileImage = user.profileImageUrl;
             const notifications = user.notifications;
-
+    
             return res.status(200).json({
                 fullName: fullName,
                 email: email,
                 profileImage: profileImage,
-                orders: orders,
-                notifications: notifications
-            })
-
-        }
-        catch(err){
-            console.error('Eroor getting User Profile:', err);
+                orders: orders, // Orders now have the latest status
+                notifications: notifications,
+            });
+    
+        } catch (err) {
+            console.error('Error getting User Profile:', err);
             return res.status(500).json({
-                message: 'Eroor getting User Profile',
-                error: err
-            })
+                message: 'Error getting User Profile',
+                error: err,
+            });
         }
-    }
+    };
+    
+
     const deleteUser = async (req, res) => {
         const { userId } = req.params;
         const cleanedUserId = userId.startsWith(":") ? userId.substring(1) : userId;
