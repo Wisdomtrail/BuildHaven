@@ -46,7 +46,6 @@ const OrderController = {
                 status: 'Pending',
             });
 
-            // Notify the user about their order
             user.notifications.push({
                 message: `Your order has been placed successfully! Order ID: ${newOrder._id}.`,
                 type: 'success',
@@ -56,7 +55,6 @@ const OrderController = {
 
             await user.save();
 
-            // Notify all admins
             const admins = await Admin.find(); // Retrieve all admins
             const notificationMessage = `New order placed by user ${user.firstName} ${user.lastName || user.email}. Order ID: ${newOrder._id}.`;
 

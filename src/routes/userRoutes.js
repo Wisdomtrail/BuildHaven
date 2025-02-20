@@ -1,6 +1,6 @@
 const express = require('express');
 const passport = require('passport');
-const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addCartFieldToUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById, deleteAllUsers } = require('../controllers/userController');
+const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById, deleteAllUsers, markAsReadNotificationUser } = require('../controllers/userController');
 const { uploadProfileImage: uploadProfile } = require('../config/multer');
 const { deleteAllOrdersByUserId, deleteAllOrders } = require('../controllers/ordersController');
 const { createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification } = require('../controllers/adminController');
@@ -46,6 +46,11 @@ router.put(
   markAsreadNotification
 )
 
+router.put(
+  "/:userId/user-notifications/read",
+  passport.authenticate('jwt', { session: false }),
+  markAsReadNotificationUser
+)
 
 router.get(
   '/get/All-count',
