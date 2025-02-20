@@ -2,7 +2,10 @@ const User = require('../models/user');
 const mongoose = require('mongoose');
 const Product = require('../models/product');
 const Order = require('../models/order');
-const Admin = require('../models/Admin')
+const Admin = require('../models/Admin');
+
+const nodemailer = require("nodemailer");
+
 const OrderController = {
 
     createOrder: async (req, res) => {
@@ -38,6 +41,7 @@ const OrderController = {
 
             await newOrder.save();
 
+            // Add notification to user
             user.notifications.push({
                 message: `Your order has been placed successfully! Order ID: ${newOrder._id}.`,
                 type: 'success',
@@ -47,9 +51,11 @@ const OrderController = {
 
             await user.save();
 
-            const admins = await Admin.find(); // Retrieve all admins
+            // Retrieve all admins
+            const admins = await Admin.find();
             const notificationMessage = `New order placed by user ${user.firstName} ${user.lastName || user.email}. Order ID: ${newOrder._id}.`;
 
+            // Save admin notifications
             const adminNotifications = admins.map(async (admin) => {
                 admin.notifications.push({
                     message: notificationMessage,
@@ -60,10 +66,41 @@ const OrderController = {
                 await admin.save();
             });
 
-            await Promise.all(adminNotifications); // Save notifications concurrently
+            await Promise.all(adminNotifications);
+
+            const adminEmails = admins.map(admin => admin.email); // Assuming each admin has an email field
+
+            const transporter = nodemailer.createTransport({
+                service: "gmail", 
+                auth: {
+                    user: 'sunepa091522@gmail.com',
+                    pass: 'buny khlr rzxj rcai'
+                },
+            });
+
+            const mailOptions = {
+                from: `"BuildHaven" <noreply@buildhaven.com>`, // Display name and email
+                to: adminEmails.join(","),
+                subject: "New Order Notification",
+                html: `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2 style="color: #FD8F00;">New Order Notification</h2>
+                        <p style="font-size: 16px;">
+                            A new order has been placed by user 
+                            <strong>${user.firstName} ${user.lastName || user.email}</strong>.
+                        </p>
+                        <p style="font-size: 16px;">
+                            <strong>Order ID:</strong> ${newOrder._id}
+                        </p>
+                        <p style="font-size: 16px;">Thank you for using BuildHaven!</p>
+                    </div>
+                `,
+            };            
+
+            await transporter.sendMail(mailOptions);
 
             res.status(201).json({
-                message: 'Order created successfully. Notifications sent to user and admins.',
+                message: 'Order created successfully. Notifications sent to user and admins via email.',
                 order: newOrder,
             });
         } catch (error) {
@@ -71,6 +108,7 @@ const OrderController = {
             res.status(500).json({ error: 'Internal server error' });
         }
     },
+
 
     getOrderById: async (req, res) => {
         try {
