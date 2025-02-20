@@ -422,15 +422,15 @@ const OrderController = {
         try {
             const { orderId } = req.params;
             const order = await Order.findById(orderId);
-
+    
             if (!order) {
-                return res.status(404).json({ message: 'Order not found' });
+                return res.status(404).json({ message: "Order not found" });
             }
-
-            if (order.status === 'Cancelled') {
-                return res.status(400).json({ message: 'Cannot approve a cancelled order' });
+    
+            if (order.status === "Cancelled") {
+                return res.status(400).json({ message: "Cannot approve a cancelled order" });
             }
-
+    
             // Process item quantities and update stock
             for (const item of order.items) {
                 const product = await Product.findById(item.productId);
@@ -440,70 +440,120 @@ const OrderController = {
                 if (product.quantity < item.quantity) {
                     return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
                 }
-
-                product.quantity -= item.quantity;  // Update product stock
+    
+                product.quantity -= item.quantity; // Update product stock
                 await product.save();
             }
-
+    
             // Update order status to completed
-            order.status = 'Completed';
+            order.status = "Completed";
             order.active = false;
             await order.save();
-
+    
             // Notify user about order approval
             const user = await User.findById(order.userId);
             user.notifications.push({
                 message: `Your order with ID ${order._id} has been completed.`,
-                type: 'success',
+                type: "success",
                 isRead: false,
                 timestamp: new Date(),
             });
             await user.save();
-
-            res.status(200).json({ message: 'Order approved and products updated', order });
-
+    
+            // Send email notification to the user
+            const nodemailer = require("nodemailer");
+            const transporter = nodemailer.createTransport({
+                service: "gmail",
+                auth: {
+                    user: "sunepa091522@gmail.com", // Your email
+                    pass: "buny khlr rzxj rcai", // Your email password
+                },
+            });
+    
+            const mailOptions = {
+                from: `"BuildHaven" <sunepa091522@gmail.com>`,
+                to: user.email,
+                subject: "Order Approved",
+                html: `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2 style="color: #4CAF50;">Order Approved</h2>
+                        <p>Dear ${user.firstName},</p>
+                        <p>Your order with ID <strong>${order._id}</strong> has been successfully approved and completed.</p>
+                        <p>Thank you for shopping with BuildHaven!</p>
+                    </div>
+                `,
+            };
+    
+            await transporter.sendMail(mailOptions);
+    
+            res.status(200).json({ message: "Order approved, products updated, and email sent to user.", order });
         } catch (error) {
-            console.error('Error approving order:', error);
-            res.status(500).json({ message: 'Internal Server Error' });
+            console.error("Error approving order:", error);
+            res.status(500).json({ message: "Internal Server Error" });
         }
     },
-
+    
     cancelOrder: async (req, res) => {
         try {
             const { orderId } = req.params;
             const order = await Order.findById(orderId);
-
+    
             if (!order) {
-                return res.status(404).json({ message: 'Order not found' });
+                return res.status(404).json({ message: "Order not found" });
             }
-
-            if (order.status === 'Completed') {
-                return res.status(400).json({ message: 'Cannot cancel a completed order' });
+    
+            if (order.status === "Completed") {
+                return res.status(400).json({ message: "Cannot cancel a completed order" });
             }
-
+    
             // Update order status to cancelled
-            order.status = 'Cancelled';
+            order.status = "Cancelled";
             order.active = false;
             await order.save();
-
+    
             // Notify user about order cancellation
             const user = await User.findById(order.userId);
             user.notifications.push({
                 message: `Your order with ID ${order._id} has been cancelled.`,
-                type: 'warning',
+                type: "warning",
                 isRead: false,
                 timestamp: new Date(),
             });
             await user.save();
-
-            res.status(200).json({ message: 'Order cancelled successfully', order });
-
+    
+            // Send email notification to the user
+            const nodemailer = require("nodemailer");
+            const transporter = nodemailer.createTransport({
+                service: "gmail",
+                auth: {
+                    user: "sunepa091522@gmail.com", // Your email
+                    pass: "buny khlr rzxj rcai", // Your email password
+                },
+            });
+    
+            const mailOptions = {
+                from: `"BuildHaven" <sunepa091522@gmail.com>`,
+                to: user.email,
+                subject: "Order Cancelled",
+                html: `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2 style="color: #FF5733;">Order Cancelled</h2>
+                        <p>Dear ${user.firstName},</p>
+                        <p>We regret to inform you that your order with ID <strong>${order._id}</strong> has been cancelled.</p>
+                        <p>If you have any questions, please contact us at support@buildhaven.com.</p>
+                    </div>
+                `,
+            };
+    
+            await transporter.sendMail(mailOptions);
+    
+            res.status(200).json({ message: "Order cancelled, and email sent to user.", order });
         } catch (error) {
-            console.error('Error cancelling order:', error);
-            res.status(500).json({ message: 'Internal Server Error' });
+            console.error("Error cancelling order:", error);
+            res.status(500).json({ message: "Internal Server Error" });
         }
-    }
-
+    },
+    
 };
 
 module.exports = OrderController;
