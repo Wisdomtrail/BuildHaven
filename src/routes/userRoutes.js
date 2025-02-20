@@ -70,9 +70,6 @@ router.delete(
 
 router.post(
   '/create-admin',
-  passport.authenticate('jwt', { session: false }),
-  authenticateJWT, // Authenticate the token
-  authorizeAdmin,   // Check admin privileg
   createAdmin
 )
 
