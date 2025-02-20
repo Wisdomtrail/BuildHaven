@@ -38,14 +38,6 @@ const OrderController = {
 
             await newOrder.save();
 
-            user.orders.push({
-                orderId: newOrder._id,
-                items: items,
-                totalAmount: totalAmount,
-                orderDate: new Date(),
-                status: 'Pending',
-            });
-
             user.notifications.push({
                 message: `Your order has been placed successfully! Order ID: ${newOrder._id}.`,
                 type: 'success',
