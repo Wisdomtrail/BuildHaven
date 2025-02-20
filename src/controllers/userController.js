@@ -221,12 +221,14 @@ const UserController = () => {
             const email = user.email;
             const orders = user.orders;
             const profileImage = user.profileImageUrl;
+            const notifications = user.notifications;
 
             return res.status(200).json({
                 fullName: fullName,
                 email: email,
                 profileImage: profileImage,
-                orders: orders
+                orders: orders,
+                notifications: notifications
             })
 
         }
