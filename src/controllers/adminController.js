@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cloudinary = require('../config/cloudinaryConfig');
 const Admin = require("../models/Admin");
+const Video = require("../models/Video"); 
+
 require("dotenv").config();
 
 const adminLogin = async (req, res) => {
@@ -223,5 +225,63 @@ const markAsreadNotification = async (req, res) => {
     }
 };
 
+const uploadNewArrivalVideoController = async (req, res) => {
+    const file = req.file;
+    const { adminId } = req.user; // Assuming JWT stores admin info
 
-module.exports = { adminLogin, createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification };
+    if (!file) {
+        return res.status(400).json({ message: "No video uploaded" });
+    }
+
+    try {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                resource_type: "video",
+                folder: "new_arrival_videos",
+            },
+            async (error, result) => {
+                if (error) {
+                    return res.status(500).json({ message: "Error uploading video", error });
+                }
+
+                // Save video details in the database
+                const newVideo = new Video({
+                    videoUrl: result.secure_url,
+                    uploadedBy: adminId,
+                });
+                await newVideo.save();
+
+                return res.status(200).json({
+                    message: "New arrival video uploaded successfully",
+                    videoUrl: result.secure_url,
+                });
+            }
+        );
+
+        if (file.buffer) {
+            uploadStream.end(file.buffer);
+        } else {
+            return res.status(400).json({ message: "Invalid file format or file missing" });
+        }
+    } catch (err) {
+        console.error("Error uploading video:", err);
+        if (!res.headersSent) {
+            return res.status(500).json({ message: "Video upload failed", error: err });
+        }
+    }
+};
+
+const getNewArrivalVideoController = async (req, res) => {
+    try {
+        const latestVideo = await Video.findOne().sort({ createdAt: -1 }); // Fetch the latest uploaded video
+        if (!latestVideo) {
+            return res.status(404).json({ message: "No new arrival video found" });
+        }
+        return res.status(200).json({ videoUrl: latestVideo.videoUrl });
+    } catch (error) {
+        console.error("Error fetching new arrival video:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+module.exports = { adminLogin, createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification, getNewArrivalVideoController, uploadNewArrivalVideoController };

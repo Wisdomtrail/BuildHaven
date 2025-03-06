@@ -1,9 +1,9 @@
 const express = require('express');
 const passport = require('passport');
 const { register, login, uploadProfileImage, updateUserInfo, getUserProfile, deleteUser, addToCart, getCart, getCartQuantity, deleteCartItem, clearCart, getOrdersByUserId, deleteOrderByUserId, getAllUsers, getAllUserCount, deleteUserById, deleteAllUsers, markAsReadNotificationUser } = require('../controllers/userController');
-const { uploadProfileImage: uploadProfile } = require('../config/multer');
+const { uploadProfileImage: uploadProfile, uploadNewArrivalVideo } = require('../config/multer');
 const { deleteAllOrdersByUserId, deleteAllOrders } = require('../controllers/ordersController');
-const { createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification } = require('../controllers/adminController');
+const { createAdmin, getAdmin, uploadAdminProfileImage, markAsreadNotification, uploadNewArrivalVideoController, getNewArrivalVideoController } = require('../controllers/adminController');
 const authorizeAdmin = require('../config/authorizeAdmin');
 const authenticateJWT = require('../config/authenticateJWT');
 const router = express.Router();
@@ -23,6 +23,21 @@ router.post(
   authorizeAdmin,
   uploadAdminProfileImage
 )
+
+router.post(
+  "/upload-new-arrival-video",
+  passport.authenticate("jwt", { session: false }),
+  uploadNewArrivalVideo,
+  authenticateJWT,
+  authorizeAdmin,
+  uploadNewArrivalVideoController
+);
+
+// **Route to Get New Arrival Video**
+router.get(
+  "/get-new-arrival-video",
+  getNewArrivalVideoController
+);
 
 router.patch(
   '/updateInfo/:userId',
